@@ -1,6 +1,6 @@
 ; PacMath - Organization and Architecture of Computers
-; Gabriel Balbao Bazon
-; Giovanna de Freitas Velasco
+; Gabriel Balbao Bazon - 13676408
+; Giovanna de Freitas Velasco - 13676346
 
 ; ------ to run  -----------
 ; ./montador PacMath.asm PacMath.mif
@@ -11,6 +11,19 @@ jmp Main
 ; ------ vectors -----------
 posF : var #1 ; current position of F
 eatenX: var #1 ; number of x eaten
+iconF: var #1
+numberMoves: var #1 ; number of movements made
+movesIntegralMode: var #1
+
+
+;nextASCIILeft: var #1
+;nextASCIIRight: var #1
+;nextASCIIUp: var #1
+;nextASCIIDown: var #1
+
+;Feromone: var #235
+ ; nao precisa iniciar os valores, so inserir direto?
+
 
 ; youWin_message: string "Congratulations!!! You Won!"
 
@@ -44,20 +57,77 @@ Blocks: var #16
 
 ; ------ main function -----------
 Main:
-    call printScreen ; Print the labyrinth
+  call printScreen ; Print the labyrinth
 
-    push r0
-    push r3
-    loadn r0, #938 ; the register 0 receives the initial position of F
-    store posF, r0 ; we store the variable positionF with the position in r0
-    loadn r3, #0;
-    store eatenX, r3
+  jmp StartF
+  call StartDerivatives
 
-    call PrintF
-    jmp Verify_Key_Pressed
-    pop r0;
-    pop r3
-    halt
+  ;push r0
+  ;push r1
+  ;push r3
+  ;push r4
+  ;loadn r0, #938 ; the register 0 receives the initial position of F
+  ;store posF, r0 ; we store the variable positionF with the position in r0
+  ;loadn r1, #0
+  ;store numberMoves, r1
+  ;loadn r3, #0;
+  ;store eatenX, r3
+  ;pop r3
+  ;loadn r4, #2839
+  ;store iconF, r4
+  ;pop r4
+
+;separar a main em funcao inicial do f e funcao inicial das derivadas / 4 reg para f e 4 reg para derivadas
+
+
+StartF:
+  push r0
+  push r1
+  push r3
+  push r4
+
+  loadn r0, #938 ; the register 0 receives the initial position of F
+  store posF, r0 ; we store the variable positionF with the position in r0
+
+  loadn r1, #0
+  store numberMoves, r1
+
+  loadn r3, #0;
+  store eatenX, r3
+  pop r3
+
+  loadn r4, #2839
+  store iconF, r4
+  
+  pop r3
+  pop r4
+
+  call PrintF
+  jmp StartDerivatives
+
+
+StartDerivatives:
+  call PrintDerivatives
+
+  jmp Verify_Key_Pressed
+  
+
+;-------------------------
+
+Verify_Key_Pressed: ; receives the first key pressed with delay
+  ;push r0
+  push r1
+  push r2
+  loadn r2, #255
+
+  ;load r0, posF
+  call Delay
+  inchar r1
+  cmp r1, r2
+  jeq Verify_Key_Pressed
+  
+  jmp MoveF
+
 
 ; ------ moveF function -----------
 
@@ -90,10 +160,19 @@ MoveF_Left:
   call Delay
   call Verify_Walls_Left
 
+  push r3
+  load r3, numberMoves
+  call Check_End_Integral_Mode
+  inc r3
+  store numberMoves, r3 
+  pop r3
+
+  ;call MoveDerivatives
+
   call EraseF
   dec r0
   store posF, r0
-  call Verify_x
+  call Verify_x_and_sum
   call PrintF
   push r2
   loadn r2, #255
@@ -153,10 +232,20 @@ Verify_Walls_Left:
 MoveF_Right:
   call Delay
   call Verify_Walls_Right
+
+  push r3
+  load r3, numberMoves
+  inc r3
+  call Check_End_Integral_Mode
+  store numberMoves, r3 
+  pop r3
+
+  ;call MoveDerivatives
+
   call EraseF
   inc r0
   store posF, r0
-  call Verify_x
+  call Verify_x_and_sum
   call PrintF
   push r2
   loadn r2, #255
@@ -216,12 +305,22 @@ Verify_Walls_Right:
 MoveF_Up:
   call Delay
   call Verify_Walls_Up
+
+  push r3
+  load r3, numberMoves
+  call Check_End_Integral_Mode
+  inc r3
+  store numberMoves, r3 
+  pop r3
+
+  ;call MoveDerivatives
+
   call EraseF 
   push r4
   loadn r4, #40
   sub r0, r0, r4
   store posF, r0
-  call Verify_x
+  call Verify_x_and_sum
   call PrintF
   push r2
   loadn r2, #255
@@ -279,12 +378,22 @@ Verify_Walls_Up:
 MoveF_Down:
   call Delay
   call Verify_Walls_Down
+
+  push r3
+  load r3, numberMoves
+  call Check_End_Integral_Mode
+  inc r3
+  store numberMoves, r3 
+  pop r3
+
+  ;call MoveDerivatives
+
   call EraseF 
   push r4
   loadn r4, #40
   add r0, r0, r4
   store posF, r0
-  call Verify_x
+  call Verify_x_and_sum
   call PrintF
   push r2
   loadn r2, #255
@@ -365,22 +474,27 @@ Is_Wall:
 
 ;-------------------------------------------
 
-Verify_x:
+Verify_x_and_sum:
   push r4
   push r5
   push r6
+  push r7
 
   loadn r4, #Screen
   loadn r6, #24
+  loadn r7, #2329
   
   add r5, r4, r0 ; acess the memory os the pixel on the screen
   loadi r5, r5 ; put the icon in the screen in the register
   cmp r5, r6
     ceq x_Eaten
+  cmp r5, r7
+    ceq Integral_Mode
 
   pop r4
   pop r5
   pop r6
+  pop r7
   
   rts
 
@@ -400,6 +514,52 @@ x_Eaten:
 
   pop r4
   pop r3
+  rts
+
+;-------------------------------------------
+
+Check_End_Integral_Mode:
+  push r4
+  load r4, movesIntegralMode
+  cmp r4, r3
+    ceq End_Integral_Mode
+
+  pop r4
+  rts
+
+;-------------------------------------------
+
+End_Integral_Mode:
+  push r2
+  loadn r2, #2839
+  store iconF, r2
+  pop r2
+  rts
+
+;-------------------------------------------
+
+Integral_Mode:
+  push r2
+  push r3
+  push r4
+  push r5
+
+  loadn r4, #20
+  load r3, numberMoves
+  add r5, r4, r3
+  store movesIntegralMode, r5
+  
+  loadn r2, #2838
+  store iconF, r2
+  call Erase_x_and_sum
+
+; a cada n iteracoes, sair do integral mode?
+
+  pop r2
+  pop r3
+  pop r4
+  pop r5
+
   rts
 
 ;-------------------------------------------
@@ -425,20 +585,8 @@ Erase_x_and_sum:
 You_Won:
   call PrintF
 
+  call printFinalFinal
   halt
-
-;-------------------------
-Verify_Key_Pressed: ; receives the first key pressed with delay
-  push r1
-  push r2
-  loadn r2, #255
-
-  call Delay
-  inchar r1
-  cmp r1, r2
-  jeq Verify_Key_Pressed
-  
-  jmp MoveF
 
 
 ;---------------------------
@@ -461,8 +609,8 @@ PrintF:
     push r2 ; has the code of f in the charmap
     
     load r1, posF 
-    loadn r2, #2839
-    outchar r2, r1 ; pritns the simbol in r1 on the position r0
+    load r2, iconF
+    outchar r2, r1 ; prints the simbol in r1 on the position r0
     
     pop r2
     pop r1
@@ -490,6 +638,155 @@ Delay:
 	rts
 
 ;---------------------------
+
+posD1 : var #1 
+posD2 : var #1
+posD3 : var #1
+posD4 : var #1
+
+; ------------------------------ derivative functions --------------------------------
+
+PrintDerivatives:
+  call PrintD1
+  call PrintD2
+  call PrintD3
+  call PrintD4
+
+  rts
+
+; --------------------------------------------
+
+MoveDerivatives:
+
+
+
+; --------------------------------------------
+
+PrintD1: ; D1
+    push r1 ; has the position where the derivative will be draw
+    push r2 ; has the code of derivative in the charmap
+    
+    loadn r1, #374
+    ;load r1, posD1
+    loadn r2, #533 
+    ;load r2, iconD1
+    outchar r2, r1 ; prints the simbol in r1 on the position r0
+    
+    pop r2
+    pop r1
+    
+    rts
+
+
+; --------------------------------------------
+
+PrintD2: ; D1
+    push r1 ; has the position where the derivative will be draw
+    push r2 ; has the code of derivative in the charmap
+    
+    loadn r1, #375
+    ;load r1, posD1
+    loadn r2, #2325 
+    ;load r2, iconD1
+    outchar r2, r1 ; prints the simbol in r1 on the position r0
+    
+    pop r2
+    pop r1
+    
+    rts
+
+; --------------------------------------------
+
+PrintD3: ; D1
+    push r1 ; has the position where the derivative will be draw
+    push r2 ; has the code of derivative in the charmap
+    
+    loadn r1, #414
+    ;load r1, posD1
+    loadn r2, #3349
+    ;load r2, iconD1
+    outchar r2, r1 ; prints the simbol in r1 on the position r0
+    
+    pop r2
+    pop r1
+    
+    rts
+
+
+; --------------------------------------------
+PrintD4: ; D1
+    push r1 ; has the position where the derivative will be draw
+    push r2 ; has the code of derivative in the charmap
+    
+    loadn r1, #415
+    ;load r1, posD1
+    loadn r2, #1557
+    ;load r2, iconD1
+    outchar r2, r1 ; prints the simbol in r1 on the position r0
+    
+    pop r2
+    pop r1
+    
+    rts
+
+
+
+; novas ideias: criar um novo mapa do mesmo tamanho que a tela, mas com caracteres @ no lugar onde haveria uma barreira
+; ou com algum caractere especifico em lugares que elas podem andar
+; a função f atualiza os valores nesse mapa das derivadas - fazer cada uma das derivadas tender a ir para algum lugar
+; as derivadas só precisam checar se nesse mapa por tra
+
+
+;Spread Feromone: ; r0 is the position of f, r1 is the key pressed(?) ; diferentes funcoes dependendo da direcao em (vem ou vai)
+ ; push r2
+  ;loadn r2, #nextASCII ; proximo caractere ascii a ser inserido (depende da quantidade de movimentos realizados pelo pacman - cada cor tem um contador?)
+  ;store Feromone, r2
+
+
+
+
+; se o pacman foi para baixo, marca a posicao que ele estava anteriormente com a cor relativa a ir para baixo
+
+; 4 cores para cada fantasma?
+; um fantasma pode ver a contagem em ascii em ordem crescente checando os blocos adjacentes 
+; checa as 4 cores adjacentes e vai seguindo a direcao indicada
+; um fantasma pode verificar a maior quantidade de caracteres ascii em cada direcao e ir pra la ; tomar cuidado com o teleporte
+; outro pode ver a linha com o maior feromonio e ir pra la
+; outro pode verificar a concentracao nos 4 cantos do mapa e ir pra la
+
+; no comeco do jogo, cada um vai pra uma regiao do mapa
+; modo aleatorio - talvez bugue o perseguidor - continua aleatorio ate encontrar algum colorido e volta a seguir
+
+; o vetor de feronomios teria 235 lugares
+; salvar feromonio pelo mapa - maior caractere ascii e ir diminuindo?
+; como diminuir a intensidade? ordem de caracteres ascii
+; vetor de feromonios que e sobrescrito com a posicao - caractere ascii indica a proxima direcao a seguir?
+; cada cor indica a proxima direcao e o indica do caractere indica a intensidade do feromonio naquele lugar?
+; a cada interacao, seria preciso diminuir a intensidade dos feronomios ja colocados
+; OUUU definir que o numero de cada movimentacao equivale a um caractere - limita a quantidade de movimentos a 255 - 20 (blocos delimitadores e personagens)
+; quando acabar os caracteres ascii? temos 16 cores disponiveis, 4 cores para cada direcao. seria possivel ter 4x a quantidade de movimentos
+; aproximadamente 940 movimentos
+; fantasma segue o maior ascii possivel sem contar a cor - diminuir o valor em ascii da cor antes de ver?
+; dcada fantasma da prioridade pra uma das 4 direcoes? talvez nao
+; quando acabar uma cor, pode comecar em outra - depois de algumas interacoes, apagar os caracteres da cor antiga e utiliza-la de novo
+
+; a derivada descarta as direcoes com blocos delimitadores
+; verifica os feronomios nos blocos restantes
+; verifica a cor do bloco atual - vai na direcao que a cor indica (talvez um fantasma da prioridade pra cor do bloco atual e outro da prioridade para checar os blocos adjacentes e ver o maior ascii)
+; o fastasma que segue os blocos pelas cores segue exatamente o caminho do pacman
+; o fastasma que verifica os blocos pelos numeros dos caracteres adjacentes consegue sair de sua rota pra se aproximar do pacman
+; o outro fantasma pode olhar mais blocos adjacentes alem dos quatro? olhar dois ou mais blocos adjacentes
+; se o bloco nao tiver 
+
+
+; a cada algumas movimentacoes, os fantasmas fazem movimentos aleatorios
+; esse numero de movimentos para ficar randomico pode aumentar conforme o tempo tambem para dificultar a previsibilidade e a dificuldade do jogo
+
+; o vermelho - blinky - perseguidor - vai para o canto superior direito no inicio
+; verde - azul - no original atua em conjunto com o vermelho pra prender o pacman - vai para o canto inferior direito no inicio
+; rosa - no original tenta ir em 4 posicoes a frente do pacman - da pra ser o que busca o maior caractere ascii na fileira
+; laranja - meio randomico ate que esteja perto do pacman - 
+; 
 
 
 Screen : var #1200
@@ -886,8 +1183,8 @@ Screen : var #1200
   static Screen + #371, #24
   static Screen + #372, #3081
   static Screen + #373, #3864
-  static Screen + #374, #533
-  static Screen + #375, #2325
+  static Screen + #374, #3967
+  static Screen + #375, #3967
   static Screen + #376, #3852
   static Screen + #377, #3081
   static Screen + #378, #24
@@ -928,8 +1225,8 @@ Screen : var #1200
   static Screen + #411, #24
   static Screen + #412, #3081
   static Screen + #413, #3848
-  static Screen + #414, #3349
-  static Screen + #415, #1557
+  static Screen + #414, #3967
+  static Screen + #415, #3967
   static Screen + #416, #3848
   static Screen + #417, #3081
   static Screen + #418, #24
@@ -1772,6 +2069,1296 @@ printScreen:
     cmp R1, R2
 
     jne printScreenLoop
+
+  pop R3
+  pop R2
+  pop R1
+  pop R0
+  rts
+
+
+
+
+Final : var #1200
+  ;Linha 0
+  static Final + #0, #3967
+  static Final + #1, #3967
+  static Final + #2, #3967
+  static Final + #3, #3455
+  static Final + #4, #3967
+  static Final + #5, #3967
+  static Final + #6, #3967
+  static Final + #7, #3199
+  static Final + #8, #127
+  static Final + #9, #3967
+  static Final + #10, #3967
+  static Final + #11, #3199
+  static Final + #12, #3199
+  static Final + #13, #2943
+  static Final + #14, #2943
+  static Final + #15, #2943
+  static Final + #16, #2943
+  static Final + #17, #2943
+  static Final + #18, #2943
+  static Final + #19, #2943
+  static Final + #20, #2943
+  static Final + #21, #2943
+  static Final + #22, #2943
+  static Final + #23, #2943
+  static Final + #24, #2943
+  static Final + #25, #2943
+  static Final + #26, #2943
+  static Final + #27, #3967
+  static Final + #28, #3967
+  static Final + #29, #3967
+  static Final + #30, #3967
+  static Final + #31, #3967
+  static Final + #32, #127
+  static Final + #33, #127
+  static Final + #34, #3967
+  static Final + #35, #3967
+  static Final + #36, #3967
+  static Final + #37, #127
+  static Final + #38, #2943
+  static Final + #39, #3967
+
+  ;Linha 1
+  static Final + #40, #3967
+  static Final + #41, #3967
+  static Final + #42, #2943
+  static Final + #43, #3455
+  static Final + #44, #3455
+  static Final + #45, #3455
+  static Final + #46, #3455
+  static Final + #47, #3455
+  static Final + #48, #3455
+  static Final + #49, #127
+  static Final + #50, #127
+  static Final + #51, #127
+  static Final + #52, #127
+  static Final + #53, #2943
+  static Final + #54, #2943
+  static Final + #55, #2842
+  static Final + #56, #2896
+  static Final + #57, #2881
+  static Final + #58, #2883
+  static Final + #59, #2943
+  static Final + #60, #2893
+  static Final + #61, #2845
+  static Final + #62, #2900
+  static Final + #63, #2888
+  static Final + #64, #2842
+  static Final + #65, #2943
+  static Final + #66, #2943
+  static Final + #67, #3967
+  static Final + #68, #3967
+  static Final + #69, #3967
+  static Final + #70, #3967
+  static Final + #71, #3967
+  static Final + #72, #127
+  static Final + #73, #127
+  static Final + #74, #127
+  static Final + #75, #127
+  static Final + #76, #127
+  static Final + #77, #2943
+  static Final + #78, #3967
+  static Final + #79, #3967
+
+  ;Linha 2
+  static Final + #80, #3967
+  static Final + #81, #3199
+  static Final + #82, #2943
+  static Final + #83, #2943
+  static Final + #84, #2943
+  static Final + #85, #2943
+  static Final + #86, #2943
+  static Final + #87, #2943
+  static Final + #88, #2943
+  static Final + #89, #2943
+  static Final + #90, #2943
+  static Final + #91, #2943
+  static Final + #92, #2943
+  static Final + #93, #2943
+  static Final + #94, #2943
+  static Final + #95, #2943
+  static Final + #96, #2943
+  static Final + #97, #2943
+  static Final + #98, #2943
+  static Final + #99, #2943
+  static Final + #100, #2943
+  static Final + #101, #2943
+  static Final + #102, #2943
+  static Final + #103, #2943
+  static Final + #104, #2943
+  static Final + #105, #2943
+  static Final + #106, #2943
+  static Final + #107, #2943
+  static Final + #108, #2943
+  static Final + #109, #3199
+  static Final + #110, #127
+  static Final + #111, #127
+  static Final + #112, #127
+  static Final + #113, #127
+  static Final + #114, #127
+  static Final + #115, #2943
+  static Final + #116, #2943
+  static Final + #117, #3199
+  static Final + #118, #3199
+  static Final + #119, #3199
+
+  ;Linha 3
+  static Final + #120, #3967
+  static Final + #121, #3078
+  static Final + #122, #3079
+  static Final + #123, #3079
+  static Final + #124, #3079
+  static Final + #125, #3079
+  static Final + #126, #3079
+  static Final + #127, #3079
+  static Final + #128, #3079
+  static Final + #129, #3079
+  static Final + #130, #3079
+  static Final + #131, #3079
+  static Final + #132, #3079
+  static Final + #133, #3079
+  static Final + #134, #3080
+  static Final + #135, #1919
+  static Final + #136, #1919
+  static Final + #137, #1919
+  static Final + #138, #1919
+  static Final + #139, #1919
+  static Final + #140, #1919
+  static Final + #141, #1919
+  static Final + #142, #1919
+  static Final + #143, #1919
+  static Final + #144, #1919
+  static Final + #145, #3078
+  static Final + #146, #3079
+  static Final + #147, #3079
+  static Final + #148, #3079
+  static Final + #149, #3079
+  static Final + #150, #3079
+  static Final + #151, #3079
+  static Final + #152, #3079
+  static Final + #153, #3079
+  static Final + #154, #3079
+  static Final + #155, #3079
+  static Final + #156, #3079
+  static Final + #157, #3079
+  static Final + #158, #3080
+  static Final + #159, #3199
+
+  ;Linha 4
+  static Final + #160, #3967
+  static Final + #161, #3081
+  static Final + #162, #127
+  static Final + #163, #127
+  static Final + #164, #127
+  static Final + #165, #127
+  static Final + #166, #127
+  static Final + #167, #127
+  static Final + #168, #127
+  static Final + #169, #127
+  static Final + #170, #127
+  static Final + #171, #127
+  static Final + #172, #127
+  static Final + #173, #127
+  static Final + #174, #3082
+  static Final + #175, #3079
+  static Final + #176, #3079
+  static Final + #177, #3079
+  static Final + #178, #3079
+  static Final + #179, #3079
+  static Final + #180, #3079
+  static Final + #181, #3079
+  static Final + #182, #3079
+  static Final + #183, #3079
+  static Final + #184, #3079
+  static Final + #185, #3083
+  static Final + #186, #127
+  static Final + #187, #127
+  static Final + #188, #127
+  static Final + #189, #127
+  static Final + #190, #127
+  static Final + #191, #127
+  static Final + #192, #127
+  static Final + #193, #127
+  static Final + #194, #127
+  static Final + #195, #127
+  static Final + #196, #127
+  static Final + #197, #127
+  static Final + #198, #3081
+  static Final + #199, #3199
+
+  ;Linha 5
+  static Final + #200, #3967
+  static Final + #201, #3081
+  static Final + #202, #127
+  static Final + #203, #3090
+  static Final + #204, #3079
+  static Final + #205, #3079
+  static Final + #206, #3079
+  static Final + #207, #3087
+  static Final + #208, #3091
+  static Final + #209, #127
+  static Final + #210, #3078
+  static Final + #211, #3079
+  static Final + #212, #3091
+  static Final + #213, #127
+  static Final + #214, #127
+  static Final + #215, #127
+  static Final + #216, #127
+  static Final + #217, #127
+  static Final + #218, #127
+  static Final + #219, #127
+  static Final + #220, #127
+  static Final + #221, #127
+  static Final + #222, #127
+  static Final + #223, #127
+  static Final + #224, #127
+  static Final + #225, #127
+  static Final + #226, #127
+  static Final + #227, #3090
+  static Final + #228, #3080
+  static Final + #229, #127
+  static Final + #230, #3090
+  static Final + #231, #3079
+  static Final + #232, #3087
+  static Final + #233, #3079
+  static Final + #234, #3079
+  static Final + #235, #3079
+  static Final + #236, #3091
+  static Final + #237, #127
+  static Final + #238, #3081
+  static Final + #239, #3967
+
+  ;Linha 6
+  static Final + #240, #3967
+  static Final + #241, #3081
+  static Final + #242, #127
+  static Final + #243, #127
+  static Final + #244, #127
+  static Final + #245, #127
+  static Final + #246, #127
+  static Final + #247, #3081
+  static Final + #248, #127
+  static Final + #249, #127
+  static Final + #250, #3081
+  static Final + #251, #127
+  static Final + #252, #127
+  static Final + #253, #127
+  static Final + #254, #3090
+  static Final + #255, #3079
+  static Final + #256, #3079
+  static Final + #257, #3091
+  static Final + #258, #127
+  static Final + #259, #3089
+  static Final + #260, #127
+  static Final + #261, #3090
+  static Final + #262, #3079
+  static Final + #263, #3080
+  static Final + #264, #127
+  static Final + #265, #3089
+  static Final + #266, #127
+  static Final + #267, #127
+  static Final + #268, #3081
+  static Final + #269, #127
+  static Final + #270, #127
+  static Final + #271, #127
+  static Final + #272, #3081
+  static Final + #273, #127
+  static Final + #274, #127
+  static Final + #275, #127
+  static Final + #276, #127
+  static Final + #277, #127
+  static Final + #278, #3081
+  static Final + #279, #3967
+
+  ;Linha 7
+  static Final + #280, #3967
+  static Final + #281, #3085
+  static Final + #282, #3079
+  static Final + #283, #3091
+  static Final + #284, #127
+  static Final + #285, #3089
+  static Final + #286, #127
+  static Final + #287, #3088
+  static Final + #288, #127
+  static Final + #289, #3090
+  static Final + #290, #3083
+  static Final + #291, #127
+  static Final + #292, #127
+  static Final + #293, #127
+  static Final + #294, #127
+  static Final + #295, #127
+  static Final + #296, #127
+  static Final + #297, #127
+  static Final + #298, #127
+  static Final + #299, #3081
+  static Final + #300, #127
+  static Final + #301, #127
+  static Final + #302, #127
+  static Final + #303, #3088
+  static Final + #304, #127
+  static Final + #305, #3082
+  static Final + #306, #3079
+  static Final + #307, #3079
+  static Final + #308, #3084
+  static Final + #309, #3079
+  static Final + #310, #127
+  static Final + #311, #127
+  static Final + #312, #3088
+  static Final + #313, #127
+  static Final + #314, #3089
+  static Final + #315, #127
+  static Final + #316, #3090
+  static Final + #317, #3079
+  static Final + #318, #3086
+  static Final + #319, #3967
+
+  ;Linha 8
+  static Final + #320, #3967
+  static Final + #321, #3081
+  static Final + #322, #127
+  static Final + #323, #127
+  static Final + #324, #127
+  static Final + #325, #3081
+  static Final + #326, #127
+  static Final + #327, #127
+  static Final + #328, #127
+  static Final + #329, #127
+  static Final + #330, #127
+  static Final + #331, #127
+  static Final + #332, #3078
+  static Final + #333, #3079
+  static Final + #334, #3079
+  static Final + #335, #3079
+  static Final + #336, #3079
+  static Final + #337, #3080
+  static Final + #338, #127
+  static Final + #339, #3082
+  static Final + #340, #3079
+  static Final + #341, #3091
+  static Final + #342, #127
+  static Final + #343, #127
+  static Final + #344, #127
+  static Final + #345, #127
+  static Final + #346, #127
+  static Final + #347, #127
+  static Final + #348, #127
+  static Final + #349, #127
+  static Final + #350, #127
+  static Final + #351, #127
+  static Final + #352, #127
+  static Final + #353, #127
+  static Final + #354, #3081
+  static Final + #355, #127
+  static Final + #356, #127
+  static Final + #357, #127
+  static Final + #358, #3081
+  static Final + #359, #3967
+
+  ;Linha 9
+  static Final + #360, #3967
+  static Final + #361, #3081
+  static Final + #362, #127
+  static Final + #363, #3090
+  static Final + #364, #3079
+  static Final + #365, #3083
+  static Final + #366, #127
+  static Final + #367, #3078
+  static Final + #368, #3079
+  static Final + #369, #6
+  static Final + #370, #7
+  static Final + #371, #7
+  static Final + #372, #7
+  static Final + #373, #7
+  static Final + #374, #7
+  static Final + #375, #7
+  static Final + #376, #7
+  static Final + #377, #7
+  static Final + #378, #7
+  static Final + #379, #7
+  static Final + #380, #7
+  static Final + #381, #7
+  static Final + #382, #7
+  static Final + #383, #7
+  static Final + #384, #7
+  static Final + #385, #7
+  static Final + #386, #7
+  static Final + #387, #7
+  static Final + #388, #7
+  static Final + #389, #7
+  static Final + #390, #8
+  static Final + #391, #3079
+  static Final + #392, #3080
+  static Final + #393, #127
+  static Final + #394, #3082
+  static Final + #395, #3079
+  static Final + #396, #3091
+  static Final + #397, #127
+  static Final + #398, #3081
+  static Final + #399, #3967
+
+  ;Linha 10
+  static Final + #400, #3967
+  static Final + #401, #3081
+  static Final + #402, #127
+  static Final + #403, #127
+  static Final + #404, #127
+  static Final + #405, #127
+  static Final + #406, #127
+  static Final + #407, #3081
+  static Final + #408, #3199
+  static Final + #409, #9
+  static Final + #410, #127
+  static Final + #411, #3199
+  static Final + #412, #3199
+  static Final + #413, #3199
+  static Final + #414, #3199
+  static Final + #415, #3199
+  static Final + #416, #3199
+  static Final + #417, #3199
+  static Final + #418, #3199
+  static Final + #419, #3199
+  static Final + #420, #3199
+  static Final + #421, #3199
+  static Final + #422, #3199
+  static Final + #423, #3199
+  static Final + #424, #3199
+  static Final + #425, #3199
+  static Final + #426, #3199
+  static Final + #427, #3199
+  static Final + #428, #3199
+  static Final + #429, #3199
+  static Final + #430, #9
+  static Final + #431, #3079
+  static Final + #432, #3083
+  static Final + #433, #127
+  static Final + #434, #127
+  static Final + #435, #127
+  static Final + #436, #127
+  static Final + #437, #127
+  static Final + #438, #3081
+  static Final + #439, #3967
+
+  ;Linha 11
+  static Final + #440, #3967
+  static Final + #441, #3082
+  static Final + #442, #3079
+  static Final + #443, #3079
+  static Final + #444, #3079
+  static Final + #445, #3080
+  static Final + #446, #127
+  static Final + #447, #3081
+  static Final + #448, #3199
+  static Final + #449, #9
+  static Final + #450, #127
+  static Final + #451, #127
+  static Final + #452, #127
+  static Final + #453, #127
+  static Final + #454, #127
+  static Final + #455, #1919
+  static Final + #456, #127
+  static Final + #457, #127
+  static Final + #458, #127
+  static Final + #459, #127
+  static Final + #460, #127
+  static Final + #461, #127
+  static Final + #462, #1919
+  static Final + #463, #127
+  static Final + #464, #127
+  static Final + #465, #127
+  static Final + #466, #127
+  static Final + #467, #127
+  static Final + #468, #127
+  static Final + #469, #127
+  static Final + #470, #9
+  static Final + #471, #127
+  static Final + #472, #127
+  static Final + #473, #127
+  static Final + #474, #3078
+  static Final + #475, #3079
+  static Final + #476, #3079
+  static Final + #477, #3079
+  static Final + #478, #3083
+  static Final + #479, #3967
+
+  ;Linha 12
+  static Final + #480, #3967
+  static Final + #481, #3199
+  static Final + #482, #3199
+  static Final + #483, #3199
+  static Final + #484, #3199
+  static Final + #485, #3081
+  static Final + #486, #127
+  static Final + #487, #3081
+  static Final + #488, #3199
+  static Final + #489, #9
+  static Final + #490, #127
+  static Final + #491, #127
+  static Final + #492, #1919
+  static Final + #493, #1919
+  static Final + #494, #1872
+  static Final + #495, #1857
+  static Final + #496, #1874
+  static Final + #497, #1857
+  static Final + #498, #1858
+  static Final + #499, #1861
+  static Final + #500, #1870
+  static Final + #501, #1875
+  static Final + #502, #1825
+  static Final + #503, #1825
+  static Final + #504, #1825
+  static Final + #505, #1919
+  static Final + #506, #1919
+  static Final + #507, #127
+  static Final + #508, #127
+  static Final + #509, #127
+  static Final + #510, #9
+  static Final + #511, #3079
+  static Final + #512, #3080
+  static Final + #513, #127
+  static Final + #514, #3081
+  static Final + #515, #127
+  static Final + #516, #127
+  static Final + #517, #127
+  static Final + #518, #127
+  static Final + #519, #127
+
+  ;Linha 13
+  static Final + #520, #3967
+  static Final + #521, #3199
+  static Final + #522, #3199
+  static Final + #523, #3199
+  static Final + #524, #127
+  static Final + #525, #3081
+  static Final + #526, #127
+  static Final + #527, #3081
+  static Final + #528, #3967
+  static Final + #529, #9
+  static Final + #530, #127
+  static Final + #531, #127
+  static Final + #532, #127
+  static Final + #533, #127
+  static Final + #534, #1919
+  static Final + #535, #127
+  static Final + #536, #127
+  static Final + #537, #127
+  static Final + #538, #127
+  static Final + #539, #127
+  static Final + #540, #127
+  static Final + #541, #127
+  static Final + #542, #127
+  static Final + #543, #127
+  static Final + #544, #127
+  static Final + #545, #127
+  static Final + #546, #3967
+  static Final + #547, #3967
+  static Final + #548, #3967
+  static Final + #549, #127
+  static Final + #550, #9
+  static Final + #551, #3199
+  static Final + #552, #3081
+  static Final + #553, #127
+  static Final + #554, #3081
+  static Final + #555, #127
+  static Final + #556, #127
+  static Final + #557, #127
+  static Final + #558, #127
+  static Final + #559, #127
+
+  ;Linha 14
+  static Final + #560, #127
+  static Final + #561, #3898
+  static Final + #562, #3079
+  static Final + #563, #3079
+  static Final + #564, #3079
+  static Final + #565, #3083
+  static Final + #566, #127
+  static Final + #567, #3081
+  static Final + #568, #3967
+  static Final + #569, #9
+  static Final + #570, #127
+  static Final + #571, #127
+  static Final + #572, #127
+  static Final + #573, #127
+  static Final + #574, #127
+  static Final + #575, #127
+  static Final + #576, #127
+  static Final + #577, #127
+  static Final + #578, #127
+  static Final + #579, #127
+  static Final + #580, #127
+  static Final + #581, #3199
+  static Final + #582, #127
+  static Final + #583, #127
+  static Final + #584, #3199
+  static Final + #585, #3199
+  static Final + #586, #1919
+  static Final + #587, #3199
+  static Final + #588, #3199
+  static Final + #589, #127
+  static Final + #590, #9
+  static Final + #591, #3199
+  static Final + #592, #3081
+  static Final + #593, #127
+  static Final + #594, #3082
+  static Final + #595, #3079
+  static Final + #596, #3079
+  static Final + #597, #3079
+  static Final + #598, #3898
+  static Final + #599, #127
+
+  ;Linha 15
+  static Final + #600, #127
+  static Final + #601, #3898
+  static Final + #602, #3867
+  static Final + #603, #127
+  static Final + #604, #127
+  static Final + #605, #127
+  static Final + #606, #127
+  static Final + #607, #3081
+  static Final + #608, #3967
+  static Final + #609, #9
+  static Final + #610, #127
+  static Final + #611, #127
+  static Final + #612, #1878
+  static Final + #613, #1903
+  static Final + #614, #1891
+  static Final + #615, #1893
+  static Final + #616, #1919
+  static Final + #617, #1893
+  static Final + #618, #1919
+  static Final + #619, #1889
+  static Final + #620, #1919
+  static Final + #621, #1894
+  static Final + #622, #1909
+  static Final + #623, #1902
+  static Final + #624, #1891
+  static Final + #625, #1889
+  static Final + #626, #1903
+  static Final + #627, #1919
+  static Final + #628, #127
+  static Final + #629, #127
+  static Final + #630, #9
+  static Final + #631, #3199
+  static Final + #632, #3081
+  static Final + #633, #127
+  static Final + #634, #127
+  static Final + #635, #127
+  static Final + #636, #127
+  static Final + #637, #3867
+  static Final + #638, #3898
+  static Final + #639, #127
+
+  ;Linha 16
+  static Final + #640, #127
+  static Final + #641, #3898
+  static Final + #642, #3079
+  static Final + #643, #3079
+  static Final + #644, #3079
+  static Final + #645, #3080
+  static Final + #646, #127
+  static Final + #647, #3081
+  static Final + #648, #3967
+  static Final + #649, #9
+  static Final + #650, #127
+  static Final + #651, #127
+  static Final + #652, #127
+  static Final + #653, #1892
+  static Final + #654, #1893
+  static Final + #655, #1919
+  static Final + #656, #1879
+  static Final + #657, #1893
+  static Final + #658, #1897
+  static Final + #659, #1893
+  static Final + #660, #1906
+  static Final + #661, #1907
+  static Final + #662, #1908
+  static Final + #663, #1906
+  static Final + #664, #1889
+  static Final + #665, #1907
+  static Final + #666, #1907
+  static Final + #667, #1919
+  static Final + #668, #127
+  static Final + #669, #127
+  static Final + #670, #9
+  static Final + #671, #3199
+  static Final + #672, #3081
+  static Final + #673, #127
+  static Final + #674, #3078
+  static Final + #675, #3079
+  static Final + #676, #3079
+  static Final + #677, #3079
+  static Final + #678, #3898
+  static Final + #679, #127
+
+  ;Linha 17
+  static Final + #680, #3967
+  static Final + #681, #3199
+  static Final + #682, #3199
+  static Final + #683, #3199
+  static Final + #684, #3199
+  static Final + #685, #3081
+  static Final + #686, #127
+  static Final + #687, #3081
+  static Final + #688, #3199
+  static Final + #689, #9
+  static Final + #690, #127
+  static Final + #691, #127
+  static Final + #692, #127
+  static Final + #693, #127
+  static Final + #694, #127
+  static Final + #695, #127
+  static Final + #696, #127
+  static Final + #697, #127
+  static Final + #698, #127
+  static Final + #699, #127
+  static Final + #700, #127
+  static Final + #701, #127
+  static Final + #702, #127
+  static Final + #703, #127
+  static Final + #704, #127
+  static Final + #705, #3199
+  static Final + #706, #3199
+  static Final + #707, #127
+  static Final + #708, #127
+  static Final + #709, #127
+  static Final + #710, #9
+  static Final + #711, #3199
+  static Final + #712, #3081
+  static Final + #713, #127
+  static Final + #714, #3081
+  static Final + #715, #127
+  static Final + #716, #127
+  static Final + #717, #127
+  static Final + #718, #127
+  static Final + #719, #127
+
+  ;Linha 18
+  static Final + #720, #3199
+  static Final + #721, #3199
+  static Final + #722, #3199
+  static Final + #723, #3199
+  static Final + #724, #3199
+  static Final + #725, #3081
+  static Final + #726, #127
+  static Final + #727, #3081
+  static Final + #728, #3199
+  static Final + #729, #9
+  static Final + #730, #127
+  static Final + #731, #127
+  static Final + #732, #127
+  static Final + #733, #127
+  static Final + #734, #127
+  static Final + #735, #127
+  static Final + #736, #127
+  static Final + #737, #127
+  static Final + #738, #127
+  static Final + #739, #127
+  static Final + #740, #127
+  static Final + #741, #127
+  static Final + #742, #127
+  static Final + #743, #127
+  static Final + #744, #127
+  static Final + #745, #127
+  static Final + #746, #127
+  static Final + #747, #127
+  static Final + #748, #127
+  static Final + #749, #127
+  static Final + #750, #9
+  static Final + #751, #3199
+  static Final + #752, #3081
+  static Final + #753, #127
+  static Final + #754, #3081
+  static Final + #755, #3199
+  static Final + #756, #127
+  static Final + #757, #127
+  static Final + #758, #127
+  static Final + #759, #3967
+
+  ;Linha 19
+  static Final + #760, #3967
+  static Final + #761, #3078
+  static Final + #762, #3079
+  static Final + #763, #3079
+  static Final + #764, #3079
+  static Final + #765, #3083
+  static Final + #766, #127
+  static Final + #767, #3081
+  static Final + #768, #3967
+  static Final + #769, #10
+  static Final + #770, #7
+  static Final + #771, #7
+  static Final + #772, #7
+  static Final + #773, #7
+  static Final + #774, #7
+  static Final + #775, #7
+  static Final + #776, #7
+  static Final + #777, #7
+  static Final + #778, #7
+  static Final + #779, #7
+  static Final + #780, #7
+  static Final + #781, #7
+  static Final + #782, #7
+  static Final + #783, #7
+  static Final + #784, #7
+  static Final + #785, #7
+  static Final + #786, #7
+  static Final + #787, #7
+  static Final + #788, #7
+  static Final + #789, #7
+  static Final + #790, #11
+  static Final + #791, #3199
+  static Final + #792, #3081
+  static Final + #793, #127
+  static Final + #794, #3082
+  static Final + #795, #3079
+  static Final + #796, #3079
+  static Final + #797, #3079
+  static Final + #798, #3080
+  static Final + #799, #3967
+
+  ;Linha 20
+  static Final + #800, #3967
+  static Final + #801, #3081
+  static Final + #802, #127
+  static Final + #803, #127
+  static Final + #804, #127
+  static Final + #805, #127
+  static Final + #806, #127
+  static Final + #807, #3081
+  static Final + #808, #3967
+  static Final + #809, #3967
+  static Final + #810, #3967
+  static Final + #811, #3967
+  static Final + #812, #3081
+  static Final + #813, #127
+  static Final + #814, #3081
+  static Final + #815, #3199
+  static Final + #816, #3199
+  static Final + #817, #3081
+  static Final + #818, #127
+  static Final + #819, #3081
+  static Final + #820, #3199
+  static Final + #821, #3199
+  static Final + #822, #3081
+  static Final + #823, #127
+  static Final + #824, #3081
+  static Final + #825, #3199
+  static Final + #826, #3199
+  static Final + #827, #3081
+  static Final + #828, #127
+  static Final + #829, #3081
+  static Final + #830, #3199
+  static Final + #831, #3199
+  static Final + #832, #3081
+  static Final + #833, #127
+  static Final + #834, #127
+  static Final + #835, #127
+  static Final + #836, #127
+  static Final + #837, #127
+  static Final + #838, #3081
+  static Final + #839, #3967
+
+  ;Linha 21
+  static Final + #840, #3967
+  static Final + #841, #3081
+  static Final + #842, #127
+  static Final + #843, #3090
+  static Final + #844, #3079
+  static Final + #845, #3080
+  static Final + #846, #127
+  static Final + #847, #3081
+  static Final + #848, #3967
+  static Final + #849, #3967
+  static Final + #850, #3967
+  static Final + #851, #3967
+  static Final + #852, #3081
+  static Final + #853, #127
+  static Final + #854, #3081
+  static Final + #855, #3199
+  static Final + #856, #3199
+  static Final + #857, #3081
+  static Final + #858, #127
+  static Final + #859, #3081
+  static Final + #860, #3199
+  static Final + #861, #3199
+  static Final + #862, #3081
+  static Final + #863, #127
+  static Final + #864, #3081
+  static Final + #865, #3199
+  static Final + #866, #3199
+  static Final + #867, #3081
+  static Final + #868, #127
+  static Final + #869, #3081
+  static Final + #870, #3199
+  static Final + #871, #3199
+  static Final + #872, #3081
+  static Final + #873, #127
+  static Final + #874, #3078
+  static Final + #875, #3079
+  static Final + #876, #3091
+  static Final + #877, #127
+  static Final + #878, #3081
+  static Final + #879, #3967
+
+  ;Linha 22
+  static Final + #880, #3967
+  static Final + #881, #3081
+  static Final + #882, #127
+  static Final + #883, #127
+  static Final + #884, #127
+  static Final + #885, #3081
+  static Final + #886, #127
+  static Final + #887, #3082
+  static Final + #888, #3079
+  static Final + #889, #3079
+  static Final + #890, #3079
+  static Final + #891, #3079
+  static Final + #892, #3083
+  static Final + #893, #127
+  static Final + #894, #3082
+  static Final + #895, #3079
+  static Final + #896, #3079
+  static Final + #897, #3083
+  static Final + #898, #127
+  static Final + #899, #3082
+  static Final + #900, #3079
+  static Final + #901, #3079
+  static Final + #902, #3083
+  static Final + #903, #127
+  static Final + #904, #3082
+  static Final + #905, #3079
+  static Final + #906, #3079
+  static Final + #907, #3083
+  static Final + #908, #127
+  static Final + #909, #3082
+  static Final + #910, #3079
+  static Final + #911, #3079
+  static Final + #912, #3083
+  static Final + #913, #127
+  static Final + #914, #3081
+  static Final + #915, #127
+  static Final + #916, #127
+  static Final + #917, #127
+  static Final + #918, #3081
+  static Final + #919, #3967
+
+  ;Linha 23
+  static Final + #920, #3967
+  static Final + #921, #3085
+  static Final + #922, #3079
+  static Final + #923, #3091
+  static Final + #924, #127
+  static Final + #925, #3081
+  static Final + #926, #127
+  static Final + #927, #127
+  static Final + #928, #127
+  static Final + #929, #127
+  static Final + #930, #127
+  static Final + #931, #127
+  static Final + #932, #127
+  static Final + #933, #127
+  static Final + #934, #127
+  static Final + #935, #127
+  static Final + #936, #127
+  static Final + #937, #127
+  static Final + #938, #127
+  static Final + #939, #127
+  static Final + #940, #127
+  static Final + #941, #127
+  static Final + #942, #127
+  static Final + #943, #127
+  static Final + #944, #127
+  static Final + #945, #127
+  static Final + #946, #127
+  static Final + #947, #127
+  static Final + #948, #127
+  static Final + #949, #127
+  static Final + #950, #127
+  static Final + #951, #127
+  static Final + #952, #127
+  static Final + #953, #127
+  static Final + #954, #3081
+  static Final + #955, #127
+  static Final + #956, #3090
+  static Final + #957, #3079
+  static Final + #958, #3086
+  static Final + #959, #3967
+
+  ;Linha 24
+  static Final + #960, #3967
+  static Final + #961, #3081
+  static Final + #962, #127
+  static Final + #963, #127
+  static Final + #964, #127
+  static Final + #965, #3088
+  static Final + #966, #127
+  static Final + #967, #3089
+  static Final + #968, #127
+  static Final + #969, #3090
+  static Final + #970, #3079
+  static Final + #971, #3080
+  static Final + #972, #127
+  static Final + #973, #3078
+  static Final + #974, #3079
+  static Final + #975, #3080
+  static Final + #976, #127
+  static Final + #977, #3078
+  static Final + #978, #3079
+  static Final + #979, #3079
+  static Final + #980, #3079
+  static Final + #981, #3079
+  static Final + #982, #3080
+  static Final + #983, #127
+  static Final + #984, #3078
+  static Final + #985, #3079
+  static Final + #986, #3079
+  static Final + #987, #3080
+  static Final + #988, #127
+  static Final + #989, #3078
+  static Final + #990, #3091
+  static Final + #991, #127
+  static Final + #992, #3089
+  static Final + #993, #127
+  static Final + #994, #3088
+  static Final + #995, #127
+  static Final + #996, #127
+  static Final + #997, #127
+  static Final + #998, #3081
+  static Final + #999, #3967
+
+  ;Linha 25
+  static Final + #1000, #3967
+  static Final + #1001, #3081
+  static Final + #1002, #127
+  static Final + #1003, #3089
+  static Final + #1004, #127
+  static Final + #1005, #127
+  static Final + #1006, #127
+  static Final + #1007, #3081
+  static Final + #1008, #127
+  static Final + #1009, #127
+  static Final + #1010, #127
+  static Final + #1011, #3081
+  static Final + #1012, #127
+  static Final + #1013, #3081
+  static Final + #1014, #2904
+  static Final + #1015, #3081
+  static Final + #1016, #127
+  static Final + #1017, #3081
+  static Final + #1018, #2836
+  static Final + #1019, #2836
+  static Final + #1020, #2836
+  static Final + #1021, #2878
+  static Final + #1022, #3081
+  static Final + #1023, #127
+  static Final + #1024, #3081
+  static Final + #1025, #2844
+  static Final + #1026, #2844
+  static Final + #1027, #3081
+  static Final + #1028, #127
+  static Final + #1029, #3081
+  static Final + #1030, #127
+  static Final + #1031, #127
+  static Final + #1032, #3081
+  static Final + #1033, #127
+  static Final + #1034, #127
+  static Final + #1035, #127
+  static Final + #1036, #3089
+  static Final + #1037, #127
+  static Final + #1038, #3081
+  static Final + #1039, #3967
+
+  ;Linha 26
+  static Final + #1040, #3967
+  static Final + #1041, #3081
+  static Final + #1042, #127
+  static Final + #1043, #3082
+  static Final + #1044, #3079
+  static Final + #1045, #3079
+  static Final + #1046, #3079
+  static Final + #1047, #3084
+  static Final + #1048, #3079
+  static Final + #1049, #3091
+  static Final + #1050, #127
+  static Final + #1051, #3088
+  static Final + #1052, #127
+  static Final + #1053, #3082
+  static Final + #1054, #3079
+  static Final + #1055, #3083
+  static Final + #1056, #127
+  static Final + #1057, #3082
+  static Final + #1058, #3079
+  static Final + #1059, #3079
+  static Final + #1060, #3079
+  static Final + #1061, #3079
+  static Final + #1062, #3083
+  static Final + #1063, #127
+  static Final + #1064, #3082
+  static Final + #1065, #3079
+  static Final + #1066, #3079
+  static Final + #1067, #3083
+  static Final + #1068, #127
+  static Final + #1069, #3088
+  static Final + #1070, #127
+  static Final + #1071, #3090
+  static Final + #1072, #3084
+  static Final + #1073, #3079
+  static Final + #1074, #3079
+  static Final + #1075, #3079
+  static Final + #1076, #3083
+  static Final + #1077, #127
+  static Final + #1078, #3081
+  static Final + #1079, #3967
+
+  ;Linha 27
+  static Final + #1080, #3967
+  static Final + #1081, #3081
+  static Final + #1082, #127
+  static Final + #1083, #127
+  static Final + #1084, #127
+  static Final + #1085, #127
+  static Final + #1086, #127
+  static Final + #1087, #127
+  static Final + #1088, #127
+  static Final + #1089, #127
+  static Final + #1090, #127
+  static Final + #1091, #127
+  static Final + #1092, #127
+  static Final + #1093, #127
+  static Final + #1094, #127
+  static Final + #1095, #127
+  static Final + #1096, #127
+  static Final + #1097, #127
+  static Final + #1098, #127
+  static Final + #1099, #127
+  static Final + #1100, #127
+  static Final + #1101, #127
+  static Final + #1102, #127
+  static Final + #1103, #127
+  static Final + #1104, #127
+  static Final + #1105, #127
+  static Final + #1106, #127
+  static Final + #1107, #127
+  static Final + #1108, #127
+  static Final + #1109, #127
+  static Final + #1110, #127
+  static Final + #1111, #127
+  static Final + #1112, #127
+  static Final + #1113, #127
+  static Final + #1114, #127
+  static Final + #1115, #127
+  static Final + #1116, #127
+  static Final + #1117, #127
+  static Final + #1118, #3081
+  static Final + #1119, #3967
+
+  ;Linha 28
+  static Final + #1120, #3967
+  static Final + #1121, #3082
+  static Final + #1122, #3079
+  static Final + #1123, #3079
+  static Final + #1124, #3079
+  static Final + #1125, #3079
+  static Final + #1126, #3079
+  static Final + #1127, #3079
+  static Final + #1128, #3079
+  static Final + #1129, #3079
+  static Final + #1130, #3079
+  static Final + #1131, #3079
+  static Final + #1132, #3079
+  static Final + #1133, #3079
+  static Final + #1134, #3079
+  static Final + #1135, #3079
+  static Final + #1136, #3079
+  static Final + #1137, #3079
+  static Final + #1138, #3079
+  static Final + #1139, #3079
+  static Final + #1140, #3079
+  static Final + #1141, #3079
+  static Final + #1142, #3079
+  static Final + #1143, #3079
+  static Final + #1144, #3079
+  static Final + #1145, #3079
+  static Final + #1146, #3079
+  static Final + #1147, #3079
+  static Final + #1148, #3079
+  static Final + #1149, #3079
+  static Final + #1150, #3079
+  static Final + #1151, #3079
+  static Final + #1152, #3079
+  static Final + #1153, #3079
+  static Final + #1154, #3079
+  static Final + #1155, #3079
+  static Final + #1156, #3079
+  static Final + #1157, #3079
+  static Final + #1158, #3083
+  static Final + #1159, #3967
+
+  ;Linha 29
+  static Final + #1160, #3967
+  static Final + #1161, #3967
+  static Final + #1162, #3967
+  static Final + #1163, #3199
+  static Final + #1164, #3199
+  static Final + #1165, #3199
+  static Final + #1166, #3199
+  static Final + #1167, #3199
+  static Final + #1168, #3199
+  static Final + #1169, #3199
+  static Final + #1170, #3199
+  static Final + #1171, #3199
+  static Final + #1172, #3199
+  static Final + #1173, #3199
+  static Final + #1174, #3199
+  static Final + #1175, #3199
+  static Final + #1176, #3199
+  static Final + #1177, #3967
+  static Final + #1178, #3967
+  static Final + #1179, #3967
+  static Final + #1180, #3967
+  static Final + #1181, #3967
+  static Final + #1182, #3967
+  static Final + #1183, #3967
+  static Final + #1184, #3967
+  static Final + #1185, #3967
+  static Final + #1186, #3967
+  static Final + #1187, #3967
+  static Final + #1188, #3967
+  static Final + #1189, #3967
+  static Final + #1190, #3967
+  static Final + #1191, #3967
+  static Final + #1192, #3967
+  static Final + #1193, #3967
+  static Final + #1194, #3967
+  static Final + #1195, #3967
+  static Final + #1196, #3967
+  static Final + #1197, #3967
+  static Final + #1198, #3967
+  static Final + #1199, #3967
+
+printFinalFinal:
+  push R0
+  push R1
+  push R2
+  push R3
+
+  loadn R0, #Final
+  loadn R1, #0
+  loadn R2, #1200
+
+  printFinalFinalLoop:
+
+    add R3,R0,R1
+    loadi R3, R3
+    outchar R3, R1
+    inc R1
+    cmp R1, R2
+
+    jne printFinalFinalLoop
 
   pop R3
   pop R2
